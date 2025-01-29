@@ -1,14 +1,14 @@
-'use client'
+"use client"
 
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { Header } from '../../components/header'
-import { Property } from '../../types/listings'
-import { mockCentrisListings } from '../../services/centris'
-import { mockRealtorListings } from '../../services/realtor'
-import Image from 'next/image'
+import { useEffect, useState, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
+import { Header } from "../../components/header"
+import type { Property } from "../../types/listings"
+import { mockCentrisListings } from "../../services/centris"
+import { mockRealtorListings } from "../../services/realtor"
+import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bed, Bath, ExternalLink, Home, Filter } from 'lucide-react'
+import { Bed, Bath, ExternalLink, Home, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function Results() {
@@ -17,31 +17,32 @@ export default function Results() {
   const [loading, setLoading] = useState(true)
   const [selectedSource, setSelectedSource] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchListings = async () => {
-      // Simulate API calls to different sources
-      const centrisListings = mockCentrisListings()
-      const realtorListings = mockRealtorListings()
-      
-      // Combine listings from all sources
-      let allListings = [...centrisListings, ...realtorListings]
-      
-      // Filter based on search params
-      const maxPrice = searchParams.get('maxPrice')
-      if (maxPrice) {
-        allListings = allListings.filter(listing => listing.price <= parseInt(maxPrice))
-      }
+  // Use useMemo to memoize the filtered listings
+  const filteredListings = useMemo(() => {
+    const allListings = [...mockCentrisListings(), ...mockRealtorListings()]
+    const maxPrice = searchParams.get("maxPrice")
+    let filtered = allListings
 
-      setListings(allListings)
-      setLoading(false)
+    if (maxPrice) {
+      filtered = filtered.filter((listing) => listing.price <= Number.parseInt(maxPrice))
     }
 
-    fetchListings()
-  }, [searchParams])
+    if (selectedSource) {
+      filtered = filtered.filter((listing) => listing.source.name === selectedSource)
+    }
 
-  const filteredListings = selectedSource 
-    ? listings.filter(listing => listing.source.name === selectedSource)
-    : listings
+    return filtered
+  }, [searchParams, selectedSource])
+
+  useEffect(() => {
+    // Simulate an API call
+    const timer = setTimeout(() => {
+      setListings(filteredListings)
+      setLoading(false)
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [filteredListings])
 
   if (loading) {
     return (
@@ -65,29 +66,26 @@ export default function Results() {
           <div className="flex items-center gap-2">
             <Filter className="w-5 h-5" />
             <span className="font-medium">Filter by source:</span>
-            <Button
-              variant={selectedSource === null ? "secondary" : "outline"}
-              onClick={() => setSelectedSource(null)}
-            >
+            <Button variant={selectedSource === null ? "secondary" : "outline"} onClick={() => setSelectedSource(null)}>
               All
             </Button>
             <Button
-              variant={selectedSource === 'Centris' ? "secondary" : "outline"}
-              onClick={() => setSelectedSource('Centris')}
+              variant={selectedSource === "Centris" ? "secondary" : "outline"}
+              onClick={() => setSelectedSource("Centris")}
             >
               Centris
             </Button>
             <Button
-              variant={selectedSource === 'Realtor.ca' ? "secondary" : "outline"}
-              onClick={() => setSelectedSource('Realtor.ca')}
+              variant={selectedSource === "Realtor.ca" ? "secondary" : "outline"}
+              onClick={() => setSelectedSource("Realtor.ca")}
             >
               Realtor.ca
             </Button>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredListings.map((listing) => (
+          {listings.map((listing) => (
             <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative h-48">
                 <Image
@@ -107,9 +105,7 @@ export default function Results() {
               </div>
               <CardHeader>
                 <CardTitle className="text-xl">{listing.title}</CardTitle>
-                <p className="text-2xl font-bold text-blue-600">
-                  ${listing.price.toLocaleString()}
-                </p>
+                <p className="text-2xl font-bold text-blue-600">${listing.price.toLocaleString()}</p>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-4 mb-4">
@@ -148,3 +144,4 @@ export default function Results() {
     </div>
   )
 }
+
